@@ -221,15 +221,25 @@ class MQTTTransport(HIDTransport):
 
     def _schedule_reconnect(self, broker_key: str, client: mqtt.Client):
         def reconnect_worker():
-            delay = self.reconnect_delays.get(broker_key, 1.0)
-            time.sleep(delay)
-            if not client.is_connected():
+            # Loop instead of recursion to prevent thread exhaustion
+            while not client.is_connected():
+                delay = self.reconnect_delays.get(broker_key, 1.0)
+                time.sleep(delay)
+
+                if client.is_connected():
+                    break
+
                 try:
                     client.reconnect()
-                except:
+                    # Reset delay on successful reconnection
+                    self.reconnect_delays[broker_key] = 1.0
+                    break
+                except Exception as e:
+                    # Exponential backoff
                     new_delay = min(delay * 2, self.max_reconnect_delay)
                     self.reconnect_delays[broker_key] = new_delay
-                    self._schedule_reconnect(broker_key, client)
+                    # Loop continues, no new thread created
+
         threading.Thread(target=reconnect_worker, daemon=True).start()
 
     def _on_message(self, client, userdata, msg):
@@ -416,7 +426,8 @@ class HTTPTransport(HIDTransport):
         self.server = None
         self.connected = False
         self.lock = threading.Lock()
-        self.pending_commands = queue.Queue()
+        # Limit queue size to prevent memory exhaustion (max 100 pending commands)
+        self.pending_commands = queue.Queue(maxsize=100)
         self.last_poll_time = 0
 
     def connect(self) -> bool:
@@ -507,17 +518,28 @@ class HTTPTransport(HIDTransport):
 
     def send_mouse(self, command: dict):
         command["type"] = "mouse"
-        self.pending_commands.put(command)
+        try:
+            # Use timeout to prevent blocking if queue is full
+            self.pending_commands.put(command, timeout=0.1)
+        except queue.Full:
+            # Drop command if queue is full (prevents memory exhaustion)
+            pass
 
     def send_key(self, command: dict):
         command["type"] = "key"
-        self.pending_commands.put(command)
+        try:
+            self.pending_commands.put(command, timeout=0.1)
+        except queue.Full:
+            pass
 
     def send_ping(self, metadata: Optional[dict] = None):
         ping = {"type": "ping", "device_id": self.device_id, "timestamp": time.time()}
         if metadata:
             ping.update(metadata)
-        self.pending_commands.put(ping)
+        try:
+            self.pending_commands.put(ping, timeout=0.1)
+        except queue.Full:
+            pass
 
     def get_transport_name(self) -> str:
         return f"http://{self.host}:{self.port}"

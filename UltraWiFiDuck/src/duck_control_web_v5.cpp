@@ -25,6 +25,7 @@
 #include <tusb.h>
 #include <set>
 #include <vector>
+#include <mutex>
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONNECTION STATE & TRANSPORT TYPES
@@ -81,6 +82,7 @@ struct DiscoveredEndpoint {
 };
 
 std::vector<DiscoveredEndpoint> discoveredEndpoints;
+std::mutex discoveredEndpointsMutex;  // Protect concurrent access to discoveredEndpoints
 const unsigned long DISCOVERY_TIMEOUT_MS = 60000;  // Forget endpoints after 60s
 
 void startMdnsListener() {
@@ -99,7 +101,8 @@ void processMdnsAnnouncement() {
 
     char buffer[512];
     int len = mdnsUdp.read(buffer, sizeof(buffer) - 1);
-    if (len <= 0) {
+    // Bounds check: ensure len is within valid range
+    if (len <= 0 || len >= sizeof(buffer)) {
         return;
     }
     buffer[len] = '\0';
@@ -131,30 +134,34 @@ void processMdnsAnnouncement() {
     Serial.printf("[mDNS] Discovered: %s (WS:%d, HTTP:%d)\n",
                   host.c_str(), ws_port, http_port);
 
-    // Update or add endpoint
-    bool found = false;
-    for (auto& ep : discoveredEndpoints) {
-        if (ep.host == host) {
+    // Update or add endpoint (with mutex protection)
+    {
+        std::lock_guard<std::mutex> lock(discoveredEndpointsMutex);
+        bool found = false;
+        for (auto& ep : discoveredEndpoints) {
+            if (ep.host == host) {
+                ep.ws_port = ws_port;
+                ep.http_port = http_port;
+                ep.last_seen_ms = millis();
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            DiscoveredEndpoint ep;
+            ep.host = host;
             ep.ws_port = ws_port;
             ep.http_port = http_port;
             ep.last_seen_ms = millis();
-            found = true;
-            break;
+            discoveredEndpoints.push_back(ep);
+            Serial.printf("[mDNS] Added endpoint: %s\n", host.c_str());
         }
-    }
-
-    if (!found) {
-        DiscoveredEndpoint ep;
-        ep.host = host;
-        ep.ws_port = ws_port;
-        ep.http_port = http_port;
-        ep.last_seen_ms = millis();
-        discoveredEndpoints.push_back(ep);
-        Serial.printf("[mDNS] Added endpoint: %s\n", host.c_str());
     }
 }
 
 void cleanupStaleEndpoints() {
+    std::lock_guard<std::mutex> lock(discoveredEndpointsMutex);
     unsigned long now = millis();
     auto it = discoveredEndpoints.begin();
     while (it != discoveredEndpoints.end()) {
@@ -462,14 +469,20 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
 
 void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties,
                    size_t len, size_t index, size_t total) {
-    if (len >= 512) {
-        Serial.println("[MQTT] Payload too large");
+    // Create safe buffer for payload (max 512 bytes + null terminator)
+    char safePayload[513];
+
+    if (len > sizeof(safePayload) - 1) {
+        Serial.printf("[MQTT] Payload too large: %d bytes\n", len);
         return;
     }
-    payload[len] = '\0';
+
+    // Copy to safe buffer and null-terminate
+    memcpy(safePayload, payload, len);
+    safePayload[len] = '\0';
 
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, payload);
+    DeserializationError error = deserializeJson(doc, safePayload);
     if (error) {
         Serial.printf("[MQTT] JSON error: %s\n", error.c_str());
         return;
@@ -495,14 +508,17 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
 // ═══════════════════════════════════════════════════════════════════════════
 
 void connectToWebSocket() {
-    // Try discovered endpoints first
-    if (!discoveredEndpoints.empty()) {
-        for (auto& ep : discoveredEndpoints) {
-            if (ep.ws_port > 0) {
-                Serial.printf("[WS] Connecting to discovered: ws://%s:%d/\n",
-                              ep.host.c_str(), ep.ws_port);
-                wsClient.begin(ep.host.c_str(), ep.ws_port, "/");
-                return;
+    // Try discovered endpoints first (with mutex protection)
+    {
+        std::lock_guard<std::mutex> lock(discoveredEndpointsMutex);
+        if (!discoveredEndpoints.empty()) {
+            for (const auto& ep : discoveredEndpoints) {
+                if (ep.ws_port > 0) {
+                    Serial.printf("[WS] Connecting to discovered: ws://%s:%d/\n",
+                                  ep.host.c_str(), ep.ws_port);
+                    wsClient.begin(ep.host.c_str(), ep.ws_port, "/");
+                    return;
+                }
             }
         }
     }
@@ -566,16 +582,19 @@ void onWebSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 void connectToHttp() {
-    // Try discovered endpoints first
-    if (!discoveredEndpoints.empty()) {
-        for (auto& ep : discoveredEndpoints) {
-            if (ep.http_port > 0) {
-                currentHttpHost = ep.host;
-                currentHttpPort = ep.http_port;
-                httpConnected = true;
-                Serial.printf("[HTTP] Using discovered: http://%s:%d\n",
-                              currentHttpHost.c_str(), currentHttpPort);
-                return;
+    // Try discovered endpoints first (with mutex protection)
+    {
+        std::lock_guard<std::mutex> lock(discoveredEndpointsMutex);
+        if (!discoveredEndpoints.empty()) {
+            for (const auto& ep : discoveredEndpoints) {
+                if (ep.http_port > 0) {
+                    currentHttpHost = ep.host;
+                    currentHttpPort = ep.http_port;
+                    httpConnected = true;
+                    Serial.printf("[HTTP] Using discovered: http://%s:%d\n",
+                                  currentHttpHost.c_str(), currentHttpPort);
+                    return;
+                }
             }
         }
     }
@@ -682,7 +701,14 @@ void sendStatus(const char* status) {
     doc["uptime_ms"] = millis();
     doc["free_heap"] = ESP.getFreeHeap();
     doc["keyboard_state_supported"] = true;
-    doc["discovered_endpoints"] = discoveredEndpoints.size();
+
+    // Get discovered endpoints count with mutex protection
+    size_t endpoint_count = 0;
+    {
+        std::lock_guard<std::mutex> lock(discoveredEndpointsMutex);
+        endpoint_count = discoveredEndpoints.size();
+    }
+    doc["discovered_endpoints"] = endpoint_count;
 
     String payload;
     serializeJson(doc, payload);
@@ -821,13 +847,20 @@ void duck_control_mqtt_loop() {
         if (currentTransport == TransportType::WEBSOCKET) transport_name = "WS";
         else if (currentTransport == TransportType::HTTP) transport_name = "HTTP";
 
+        // Get discovered endpoints count with mutex protection
+        size_t endpoint_count = 0;
+        {
+            std::lock_guard<std::mutex> lock(discoveredEndpointsMutex);
+            endpoint_count = discoveredEndpoints.size();
+        }
+
         Serial.printf("[HEALTH] State: %s, Transport: %s, USB: %s, Keys: %d, Heap: %u, Discovered: %d\n",
                       (connectionState == ConnectionState::DISCOVERY) ? "DISCOVERY" : "LOCKED",
                       transport_name,
                       tud_mounted() ? "OK" : "DISC",
                       pressedKeys.size(),
                       ESP.getFreeHeap(),
-                      discoveredEndpoints.size());
+                      endpoint_count);
         lastCheck = now;
     }
 
