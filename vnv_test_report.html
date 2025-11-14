@@ -136,19 +136,19 @@
             </div>
             <div class="stat-card">
                 <div class="stat-label">Passed</div>
-                <div class="stat-value" style="color: #28a745;">24</div>
+                <div class="stat-value" style="color: #28a745;">28</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Warnings</div>
-                <div class="stat-value" style="color: #ffc107;">11</div>
+                <div class="stat-value" style="color: #ffc107;">9</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Failed</div>
-                <div class="stat-value" style="color: #dc3545;">6</div>
+                <div class="stat-value" style="color: #dc3545;">4</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Pass Rate</div>
-                <div class="stat-value pass-rate poor">58.5%</div>
+                <div class="stat-value pass-rate medium">68.3%</div>
             </div>
         </div>
     </div>
@@ -207,7 +207,7 @@
                     <td><strong>L0.6</strong></td>
                     <td>Error handling coverage</td>
                     <td><span class="status status-FAIL">FAIL</span></td>
-                    <td class="details">Too many bare except: 17/29</td>
+                    <td class="details">Too many bare except: 16/32</td>
                 </tr>
 
             </tbody>
@@ -300,15 +300,15 @@
                 <tr>
                     <td><strong>L2.1</strong></td>
                     <td>Critical security issues</td>
-                    <td><span class="status status-FAIL">FAIL</span></td>
-                    <td class="details">4 critical issues found: CPP-001: Buffer overflow in mDNS (no bounds check); CPP-002: MQTT payload overflow risk present; CPP-003: Unsynchronized vector access (no mutex)</td>
+                    <td><span class="status status-WARN">WARN</span></td>
+                    <td class="details">1 critical issue(s): PY-002: Potential recursive thread creation</td>
                 </tr>
 
                 <tr>
                     <td><strong>L2.2</strong></td>
                     <td>Resource limits enforced</td>
-                    <td><span class="status status-FAIL">FAIL</span></td>
-                    <td class="details">Resource limits missing: Unbounded Queue detected; Vector without size limits</td>
+                    <td><span class="status status-WARN">WARN</span></td>
+                    <td class="details">Some resource limits missing: Vector without size limits</td>
                 </tr>
 
                 <tr>
@@ -436,8 +436,8 @@
                 <tr>
                     <td><strong>L4.2</strong></td>
                     <td>Memory allocation patterns</td>
-                    <td><span class="status status-WARN">WARN</span></td>
-                    <td class="details">Potential memory concern: Python: Lists may grow unbounded</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">Memory allocation patterns appear safe</td>
                 </tr>
 
                 <tr>
@@ -511,22 +511,22 @@
                 <tr>
                     <td><strong>L5.3</strong></td>
                     <td>Buffer overflow protection</td>
-                    <td><span class="status status-WARN">WARN</span></td>
-                    <td class="details">Potential buffer issue: Buffer indexing without bounds check</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">No obvious buffer overflow patterns</td>
                 </tr>
 
                 <tr>
                     <td><strong>L5.4</strong></td>
                     <td>Race condition protection</td>
-                    <td><span class="status status-WARN">WARN</span></td>
-                    <td class="details">Potential race condition: C++: Vector without mutex protection</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">Race condition protections appear adequate</td>
                 </tr>
 
                 <tr>
                     <td><strong>L5.5</strong></td>
                     <td>DoS resilience</td>
-                    <td><span class="status status-WARN">WARN</span></td>
-                    <td class="details">Potential DoS vectors: Unbounded queue growth</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">DoS protections present</td>
                 </tr>
 
                 <tr>
@@ -555,7 +555,7 @@
     </div>
 
     <div class="timestamp">
-        Report generated: 2025-11-14 11:00:45
+        Report generated: 2025-11-14 11:21:34
     </div>
 </body>
 </html>

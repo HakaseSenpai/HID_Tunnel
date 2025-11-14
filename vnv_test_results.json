@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-11-14T11:00:45.306309",
+  "timestamp": "2025-11-14T11:21:34.713919",
   "summary": {
     "total_tests": 41,
-    "passed": 24,
-    "failed": 6,
-    "warned": 11,
-    "pass_rate": 58.536585365853654
+    "passed": 28,
+    "failed": 4,
+    "warned": 9,
+    "pass_rate": 68.29268292682927
   },
   "results": {
     "L0": [
@@ -49,7 +49,7 @@
         "name": "Error handling coverage",
         "status": "FAIL",
         "passed": false,
-        "details": "Too many bare except: 17/29"
+        "details": "Too many bare except: 16/32"
       }
     ],
     "L1": [
@@ -107,16 +107,16 @@
       {
         "id": "L2.1",
         "name": "Critical security issues",
-        "status": "FAIL",
-        "passed": false,
-        "details": "4 critical issues found: CPP-001: Buffer overflow in mDNS (no bounds check); CPP-002: MQTT payload overflow risk present; CPP-003: Unsynchronized vector access (no mutex)"
+        "status": "WARN",
+        "passed": true,
+        "details": "1 critical issue(s): PY-002: Potential recursive thread creation"
       },
       {
         "id": "L2.2",
         "name": "Resource limits enforced",
-        "status": "FAIL",
-        "passed": false,
-        "details": "Resource limits missing: Unbounded Queue detected; Vector without size limits"
+        "status": "WARN",
+        "passed": true,
+        "details": "Some resource limits missing: Vector without size limits"
       },
       {
         "id": "L2.3",
@@ -209,9 +209,9 @@
       {
         "id": "L4.2",
         "name": "Memory allocation patterns",
-        "status": "WARN",
+        "status": "PASS",
         "passed": true,
-        "details": "Potential memory concern: Python: Lists may grow unbounded"
+        "details": "Memory allocation patterns appear safe"
       },
       {
         "id": "L4.3",
@@ -267,23 +267,23 @@
       {
         "id": "L5.3",
         "name": "Buffer overflow protection",
-        "status": "WARN",
+        "status": "PASS",
         "passed": true,
-        "details": "Potential buffer issue: Buffer indexing without bounds check"
+        "details": "No obvious buffer overflow patterns"
       },
       {
         "id": "L5.4",
         "name": "Race condition protection",
-        "status": "WARN",
+        "status": "PASS",
         "passed": true,
-        "details": "Potential race condition: C++: Vector without mutex protection"
+        "details": "Race condition protections appear adequate"
       },
       {
         "id": "L5.5",
         "name": "DoS resilience",
-        "status": "WARN",
+        "status": "PASS",
         "passed": true,
-        "details": "Potential DoS vectors: Unbounded queue growth"
+        "details": "DoS protections present"
       },
       {
         "id": "L5.6",
