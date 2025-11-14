@@ -37,4 +37,5 @@ void loop() {
     webserver::update();
     Gpiotrigger.update();
     debug_update();
+    duck_control_mqtt_loop();  // v4: Call transport loop for health checks and WebSocket
 }
