@@ -1,0 +1,311 @@
+{
+  "timestamp": "2025-11-14T11:00:45.306309",
+  "summary": {
+    "total_tests": 41,
+    "passed": 24,
+    "failed": 6,
+    "warned": 11,
+    "pass_rate": 58.536585365853654
+  },
+  "results": {
+    "L0": [
+      {
+        "id": "L0.1",
+        "name": "Auto-detect IP function",
+        "status": "FAIL",
+        "passed": false,
+        "details": "Failed to load module: No module named 'paho'"
+      },
+      {
+        "id": "L0.2",
+        "name": "Transport classes defined",
+        "status": "FAIL",
+        "passed": false,
+        "details": "Failed to load module: No module named 'paho'"
+      },
+      {
+        "id": "L0.3",
+        "name": "JSON payload handling",
+        "status": "PASS",
+        "passed": true,
+        "details": "JSON parsing: 6/6 passed"
+      },
+      {
+        "id": "L0.4",
+        "name": "Buffer size safety",
+        "status": "PASS",
+        "passed": true,
+        "details": "Buffer sizes appear reasonable"
+      },
+      {
+        "id": "L0.5",
+        "name": "Thread safety primitives",
+        "status": "PASS",
+        "passed": true,
+        "details": "Thread safety: 6 locks, 23 with-statements"
+      },
+      {
+        "id": "L0.6",
+        "name": "Error handling coverage",
+        "status": "FAIL",
+        "passed": false,
+        "details": "Too many bare except: 17/29"
+      }
+    ],
+    "L1": [
+      {
+        "id": "L1.1",
+        "name": "MQTT broker connectivity",
+        "status": "FAIL",
+        "passed": false,
+        "details": "All MQTT brokers unreachable: ['broker.emqx.io:1883 ([Errno -3] Temporary failure in name resolution)', 'test.mosquitto.org:1883 ([Errno -3] Temporary failure in name resolution)']"
+      },
+      {
+        "id": "L1.2",
+        "name": "Required ports available",
+        "status": "PASS",
+        "passed": true,
+        "details": "All required ports available: [8765, 8080, 37020]"
+      },
+      {
+        "id": "L1.3",
+        "name": "UDP broadcast capability",
+        "status": "PASS",
+        "passed": true,
+        "details": "UDP broadcast capable, port 37020 available"
+      },
+      {
+        "id": "L1.4",
+        "name": "JSON command serialization",
+        "status": "PASS",
+        "passed": true,
+        "details": "All 4 command types serialized correctly"
+      },
+      {
+        "id": "L1.5",
+        "name": "Transport selection logic",
+        "status": "PASS",
+        "passed": true,
+        "details": "All 3 transports implemented with auto mode"
+      },
+      {
+        "id": "L1.6",
+        "name": "State machine transitions",
+        "status": "PASS",
+        "passed": true,
+        "details": "State machine complete with DISCOVERY/LOCKED and 3 transports"
+      },
+      {
+        "id": "L1.7",
+        "name": "Error propagation",
+        "status": "WARN",
+        "passed": true,
+        "details": "Error handling present but status reporting unclear"
+      }
+    ],
+    "L2": [
+      {
+        "id": "L2.1",
+        "name": "Critical security issues",
+        "status": "FAIL",
+        "passed": false,
+        "details": "4 critical issues found: CPP-001: Buffer overflow in mDNS (no bounds check); CPP-002: MQTT payload overflow risk present; CPP-003: Unsynchronized vector access (no mutex)"
+      },
+      {
+        "id": "L2.2",
+        "name": "Resource limits enforced",
+        "status": "FAIL",
+        "passed": false,
+        "details": "Resource limits missing: Unbounded Queue detected; Vector without size limits"
+      },
+      {
+        "id": "L2.3",
+        "name": "Watchdog implementation",
+        "status": "PASS",
+        "passed": true,
+        "details": "Watchdog properly implemented and reset in loop"
+      },
+      {
+        "id": "L2.4",
+        "name": "HID timeout safety",
+        "status": "PASS",
+        "passed": true,
+        "details": "HID timeout safety properly implemented"
+      },
+      {
+        "id": "L2.5",
+        "name": "Reconnection logic",
+        "status": "PASS",
+        "passed": true,
+        "details": "Reconnection with backoff/max delay implemented"
+      },
+      {
+        "id": "L2.6",
+        "name": "Protocol compatibility",
+        "status": "WARN",
+        "passed": true,
+        "details": "Feature mismatch - Python only: set(), C++ only: {'lock_transport'}"
+      },
+      {
+        "id": "L2.7",
+        "name": "Dependency versions",
+        "status": "PASS",
+        "passed": true,
+        "details": "Dependency versions specified (10 pinned)"
+      }
+    ],
+    "L3": [
+      {
+        "id": "L3.1",
+        "name": "Quick start script",
+        "status": "PASS",
+        "passed": true,
+        "details": "Quick start script properly configured"
+      },
+      {
+        "id": "L3.2",
+        "name": "Configuration helper",
+        "status": "PASS",
+        "passed": true,
+        "details": "Configuration helper properly implemented"
+      },
+      {
+        "id": "L3.3",
+        "name": "Documentation completeness",
+        "status": "PASS",
+        "passed": true,
+        "details": "All 3 documentation files complete"
+      },
+      {
+        "id": "L3.4",
+        "name": "Version consistency",
+        "status": "PASS",
+        "passed": true,
+        "details": "Version consistency OK (v4: {'4.0'}, v5: {'5.0'})"
+      },
+      {
+        "id": "L3.5",
+        "name": "File structure",
+        "status": "PASS",
+        "passed": true,
+        "details": "All 5 required files present"
+      },
+      {
+        "id": "L3.6",
+        "name": "Backwards compatibility",
+        "status": "WARN",
+        "passed": true,
+        "details": "Some v4 functions not in v5: 1 functions"
+      }
+    ],
+    "L4": [
+      {
+        "id": "L4.1",
+        "name": "HID rate limiting",
+        "status": "PASS",
+        "passed": true,
+        "details": "HID rate limited to 50.0 Hz (20ms interval)"
+      },
+      {
+        "id": "L4.2",
+        "name": "Memory allocation patterns",
+        "status": "WARN",
+        "passed": true,
+        "details": "Potential memory concern: Python: Lists may grow unbounded"
+      },
+      {
+        "id": "L4.3",
+        "name": "Network buffer sizes",
+        "status": "PASS",
+        "passed": true,
+        "details": "Network buffer sizes appropriate"
+      },
+      {
+        "id": "L4.4",
+        "name": "Blocking operations",
+        "status": "WARN",
+        "passed": true,
+        "details": "Blocking operation detected: HTTP GET in main loop (25s block)"
+      },
+      {
+        "id": "L4.5",
+        "name": "Reconnection backoff",
+        "status": "WARN",
+        "passed": true,
+        "details": "Backoff parameters not clearly defined"
+      },
+      {
+        "id": "L4.6",
+        "name": "Thread count limits",
+        "status": "PASS",
+        "passed": true,
+        "details": "9 thread creation points (no pool)"
+      },
+      {
+        "id": "L4.7",
+        "name": "QoS settings",
+        "status": "PASS",
+        "passed": true,
+        "details": "Python: Mouse QoS 0 \u2713; Python: Key QoS 1 \u2713; C++: Mouse QoS 0 \u2713; C++: Key QoS 1 \u2713"
+      }
+    ],
+    "L5": [
+      {
+        "id": "L5.1",
+        "name": "Input validation",
+        "status": "PASS",
+        "passed": true,
+        "details": "Input validation present"
+      },
+      {
+        "id": "L5.2",
+        "name": "Authentication mechanisms",
+        "status": "WARN",
+        "passed": true,
+        "details": "mDNS discovery without authentication"
+      },
+      {
+        "id": "L5.3",
+        "name": "Buffer overflow protection",
+        "status": "WARN",
+        "passed": true,
+        "details": "Potential buffer issue: Buffer indexing without bounds check"
+      },
+      {
+        "id": "L5.4",
+        "name": "Race condition protection",
+        "status": "WARN",
+        "passed": true,
+        "details": "Potential race condition: C++: Vector without mutex protection"
+      },
+      {
+        "id": "L5.5",
+        "name": "DoS resilience",
+        "status": "WARN",
+        "passed": true,
+        "details": "Potential DoS vectors: Unbounded queue growth"
+      },
+      {
+        "id": "L5.6",
+        "name": "Error info disclosure",
+        "status": "PASS",
+        "passed": true,
+        "details": "No obvious information disclosure"
+      },
+      {
+        "id": "L5.7",
+        "name": "Command injection",
+        "status": "PASS",
+        "passed": true,
+        "details": "No command injection vectors detected"
+      },
+      {
+        "id": "L5.8",
+        "name": "Encryption usage",
+        "status": "WARN",
+        "passed": true,
+        "details": "No encryption detected - all traffic plaintext"
+      }
+    ]
+  }
+}

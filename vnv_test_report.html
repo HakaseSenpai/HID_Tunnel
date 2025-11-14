@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>HID Tunnel V&V Test Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .summary {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 36px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+        .level-section {
+            background: white;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .level-header {
+            padding: 15px 20px;
+            font-weight: bold;
+            font-size: 18px;
+            color: white;
+        }
+        .level-L0 { background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%); }
+        .level-L1 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .level-L2 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .level-L3 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .level-L4 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        .level-L5 { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .status-PASS {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-FAIL {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status-WARN {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .details {
+            color: #666;
+            font-size: 13px;
+        }
+        .timestamp {
+            text-align: center;
+            color: #999;
+            margin-top: 30px;
+            font-size: 12px;
+        }
+        .pass-rate {
+            font-size: 48px;
+            font-weight: bold;
+        }
+        .pass-rate.good { color: #28a745; }
+        .pass-rate.medium { color: #ffc107; }
+        .pass-rate.poor { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔬 HID Tunnel V&V Test Report</h1>
+        <p>Comprehensive Verification & Validation Matrix (L0-L5)</p>
+    </div>
+
+    <div class="summary">
+        <h2>Executive Summary</h2>
+        <div class="summary-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Tests</div>
+                <div class="stat-value">41</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Passed</div>
+                <div class="stat-value" style="color: #28a745;">24</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Warnings</div>
+                <div class="stat-value" style="color: #ffc107;">11</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Failed</div>
+                <div class="stat-value" style="color: #dc3545;">6</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Pass Rate</div>
+                <div class="stat-value pass-rate poor">58.5%</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="level-section">
+        <div class="level-header level-L0">
+            L0: Component/Unit Level - Individual functions and components
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 10%">Test ID</th>
+                    <th style="width: 30%">Test Name</th>
+                    <th style="width: 10%">Status</th>
+                    <th style="width: 50%">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td><strong>L0.1</strong></td>
+                    <td>Auto-detect IP function</td>
+                    <td><span class="status status-FAIL">FAIL</span></td>
+                    <td class="details">Failed to load module: No module named 'paho'</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L0.2</strong></td>
+                    <td>Transport classes defined</td>
+                    <td><span class="status status-FAIL">FAIL</span></td>
+                    <td class="details">Failed to load module: No module named 'paho'</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L0.3</strong></td>
+                    <td>JSON payload handling</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">JSON parsing: 6/6 passed</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L0.4</strong></td>
+                    <td>Buffer size safety</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">Buffer sizes appear reasonable</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L0.5</strong></td>
+                    <td>Thread safety primitives</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">Thread safety: 6 locks, 23 with-statements</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L0.6</strong></td>
+                    <td>Error handling coverage</td>
+                    <td><span class="status status-FAIL">FAIL</span></td>
+                    <td class="details">Too many bare except: 17/29</td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+    <div class="level-section">
+        <div class="level-header level-L1">
+            L1: Integration Level - Component interactions and interfaces
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 10%">Test ID</th>
+                    <th style="width: 30%">Test Name</th>
+                    <th style="width: 10%">Status</th>
+                    <th style="width: 50%">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td><strong>L1.1</strong></td>
+                    <td>MQTT broker connectivity</td>
+                    <td><span class="status status-FAIL">FAIL</span></td>
+                    <td class="details">All MQTT brokers unreachable: ['broker.emqx.io:1883 ([Errno -3] Temporary failure in name resolution)', 'test.mosquitto.org:1883 ([Errno -3] Temporary failure in name resolution)']</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L1.2</strong></td>
+                    <td>Required ports available</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">All required ports available: [8765, 8080, 37020]</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L1.3</strong></td>
+                    <td>UDP broadcast capability</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">UDP broadcast capable, port 37020 available</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L1.4</strong></td>
+                    <td>JSON command serialization</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">All 4 command types serialized correctly</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L1.5</strong></td>
+                    <td>Transport selection logic</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">All 3 transports implemented with auto mode</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L1.6</strong></td>
+                    <td>State machine transitions</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">State machine complete with DISCOVERY/LOCKED and 3 transports</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L1.7</strong></td>
+                    <td>Error propagation</td>
+                    <td><span class="status status-WARN">WARN</span></td>
+                    <td class="details">Error handling present but status reporting unclear</td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+    <div class="level-section">
+        <div class="level-header level-L2">
+            L2: System Level - Complete subsystems and critical paths
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 10%">Test ID</th>
+                    <th style="width: 30%">Test Name</th>
+                    <th style="width: 10%">Status</th>
+                    <th style="width: 50%">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td><strong>L2.1</strong></td>
+                    <td>Critical security issues</td>
+                    <td><span class="status status-FAIL">FAIL</span></td>
+                    <td class="details">4 critical issues found: CPP-001: Buffer overflow in mDNS (no bounds check); CPP-002: MQTT payload overflow risk present; CPP-003: Unsynchronized vector access (no mutex)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L2.2</strong></td>
+                    <td>Resource limits enforced</td>
+                    <td><span class="status status-FAIL">FAIL</span></td>
+                    <td class="details">Resource limits missing: Unbounded Queue detected; Vector without size limits</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L2.3</strong></td>
+                    <td>Watchdog implementation</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">Watchdog properly implemented and reset in loop</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L2.4</strong></td>
+                    <td>HID timeout safety</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">HID timeout safety properly implemented</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L2.5</strong></td>
+                    <td>Reconnection logic</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">Reconnection with backoff/max delay implemented</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L2.6</strong></td>
+                    <td>Protocol compatibility</td>
+                    <td><span class="status status-WARN">WARN</span></td>
+                    <td class="details">Feature mismatch - Python only: set(), C++ only: {'lock_transport'}</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L2.7</strong></td>
+                    <td>Dependency versions</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">Dependency versions specified (10 pinned)</td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+    <div class="level-section">
+        <div class="level-header level-L3">
+            L3: End-to-End Level - User workflows and documentation
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 10%">Test ID</th>
+                    <th style="width: 30%">Test Name</th>
+                    <th style="width: 10%">Status</th>
+                    <th style="width: 50%">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td><strong>L3.1</strong></td>
+                    <td>Quick start script</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">Quick start script properly configured</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L3.2</strong></td>
+                    <td>Configuration helper</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">Configuration helper properly implemented</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L3.3</strong></td>
+                    <td>Documentation completeness</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">All 3 documentation files complete</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L3.4</strong></td>
+                    <td>Version consistency</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">Version consistency OK (v4: {'4.0'}, v5: {'5.0'})</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L3.5</strong></td>
+                    <td>File structure</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">All 5 required files present</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L3.6</strong></td>
+                    <td>Backwards compatibility</td>
+                    <td><span class="status status-WARN">WARN</span></td>
+                    <td class="details">Some v4 functions not in v5: 1 functions</td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+    <div class="level-section">
+        <div class="level-header level-L4">
+            L4: Performance Level - Efficiency and resource usage
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 10%">Test ID</th>
+                    <th style="width: 30%">Test Name</th>
+                    <th style="width: 10%">Status</th>
+                    <th style="width: 50%">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td><strong>L4.1</strong></td>
+                    <td>HID rate limiting</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">HID rate limited to 50.0 Hz (20ms interval)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L4.2</strong></td>
+                    <td>Memory allocation patterns</td>
+                    <td><span class="status status-WARN">WARN</span></td>
+                    <td class="details">Potential memory concern: Python: Lists may grow unbounded</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L4.3</strong></td>
+                    <td>Network buffer sizes</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">Network buffer sizes appropriate</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L4.4</strong></td>
+                    <td>Blocking operations</td>
+                    <td><span class="status status-WARN">WARN</span></td>
+                    <td class="details">Blocking operation detected: HTTP GET in main loop (25s block)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L4.5</strong></td>
+                    <td>Reconnection backoff</td>
+                    <td><span class="status status-WARN">WARN</span></td>
+                    <td class="details">Backoff parameters not clearly defined</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L4.6</strong></td>
+                    <td>Thread count limits</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">9 thread creation points (no pool)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L4.7</strong></td>
+                    <td>QoS settings</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">Python: Mouse QoS 0 ✓; Python: Key QoS 1 ✓; C++: Mouse QoS 0 ✓; C++: Key QoS 1 ✓</td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+    <div class="level-section">
+        <div class="level-header level-L5">
+            L5: Security/Robustness Level - Vulnerabilities and edge cases
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 10%">Test ID</th>
+                    <th style="width: 30%">Test Name</th>
+                    <th style="width: 10%">Status</th>
+                    <th style="width: 50%">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td><strong>L5.1</strong></td>
+                    <td>Input validation</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">Input validation present</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L5.2</strong></td>
+                    <td>Authentication mechanisms</td>
+                    <td><span class="status status-WARN">WARN</span></td>
+                    <td class="details">mDNS discovery without authentication</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L5.3</strong></td>
+                    <td>Buffer overflow protection</td>
+                    <td><span class="status status-WARN">WARN</span></td>
+                    <td class="details">Potential buffer issue: Buffer indexing without bounds check</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L5.4</strong></td>
+                    <td>Race condition protection</td>
+                    <td><span class="status status-WARN">WARN</span></td>
+                    <td class="details">Potential race condition: C++: Vector without mutex protection</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L5.5</strong></td>
+                    <td>DoS resilience</td>
+                    <td><span class="status status-WARN">WARN</span></td>
+                    <td class="details">Potential DoS vectors: Unbounded queue growth</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L5.6</strong></td>
+                    <td>Error info disclosure</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">No obvious information disclosure</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L5.7</strong></td>
+                    <td>Command injection</td>
+                    <td><span class="status status-PASS">PASS</span></td>
+                    <td class="details">No command injection vectors detected</td>
+                </tr>
+
+                <tr>
+                    <td><strong>L5.8</strong></td>
+                    <td>Encryption usage</td>
+                    <td><span class="status status-WARN">WARN</span></td>
+                    <td class="details">No encryption detected - all traffic plaintext</td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+    <div class="timestamp">
+        Report generated: 2025-11-14 11:00:45
+    </div>
+</body>
+</html>
