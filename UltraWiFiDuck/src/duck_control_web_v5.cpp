@@ -233,6 +233,7 @@ bool httpConnected = false;
 unsigned long lastHttpPollTime = 0;
 const unsigned long HTTP_POLL_INTERVAL_MS = 2000;  // Poll every 2s
 const unsigned long HTTP_POLL_TIMEOUT_MS = 25000;  // 25s server timeout
+static TaskHandle_t httpPollingTaskHandle = NULL;  // FreeRTOS task handle
 
 struct HTTPEndpointConfig {
     const char* host;
@@ -680,6 +681,21 @@ void httpSendStatus(const JsonDocument& statusDoc) {
     httpClient.end();
 }
 
+// HTTP Polling Task (runs in separate FreeRTOS task to prevent main loop blocking)
+void httpPollingTask(void* parameter) {
+    Serial.println("[HTTP] Polling task started");
+
+    while (true) {
+        // Only poll if HTTP transport is active and connected
+        if (currentTransport == TransportType::HTTP && httpConnected) {
+            httpPoll();  // This can block for up to 25s, but it's OK in separate task
+        }
+
+        // Small delay to prevent tight loop when not HTTP transport
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // STATUS REPORTING (All transports)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -815,6 +831,17 @@ void duck_control_web_begin() {
     // Start mDNS discovery listener
     startMdnsListener();
 
+    // Create HTTP polling task (runs in separate task to prevent main loop blocking)
+    xTaskCreate(
+        httpPollingTask,         // Task function
+        "http_poll",             // Task name
+        4096,                    // Stack size (bytes)
+        NULL,                    // Parameter
+        1,                       // Priority (1 = low, same as idle)
+        &httpPollingTaskHandle   // Task handle
+    );
+    Serial.println("[HTTP] Polling task created");
+
     // Start with MQTT in discovery mode
     Serial.println("[TRANSPORT] Starting discovery with MQTT...");
     connectToMqtt();
@@ -867,9 +894,9 @@ void duck_control_mqtt_loop() {
     // Transport-specific loops
     if (currentTransport == TransportType::WEBSOCKET) {
         wsClient.loop();
-    } else if (currentTransport == TransportType::HTTP) {
-        httpPoll();
     }
+    // HTTP polling now runs in separate FreeRTOS task (httpPollingTask)
+    // No need to call httpPoll() here - prevents 25s blocking
 
     // Check lock expiry
     checkLockExpiry();
