@@ -12,76 +12,173 @@ import paho.mqtt.client as mqtt
 import signal  # New: For signal handling
 
 class MQTTHIDForwarder:
-    def __init__(self, mqtt_broker="broker.emqx.io", mqtt_port=1883, device_id="esp32_hid_001",
-                 sensitivity=0.5, rate_limit_ms=50, inactivity_timeout_s=2, global_timeout_s=5, click_hold_ms=50):
-        self.mqtt_broker = mqtt_broker
-        self.mqtt_port = mqtt_port
+    def __init__(self, mqtt_brokers=None, device_id="esp32_hid_001",
+                 sensitivity=0.5, rate_limit_ms=20, inactivity_timeout_s=2, global_timeout_s=5,
+                 click_hold_ms=50, use_keyboard_state=False):
+        # Multi-broker support
+        if mqtt_brokers is None:
+            mqtt_brokers = [("broker.emqx.io", 1883)]
+        self.mqtt_brokers = mqtt_brokers  # List of (host, port) tuples
         self.device_id = device_id
-        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)  # Fix deprecation warning
+        self.clients = {}  # Dictionary of broker -> client
+        self.active_broker = None  # Currently active broker for HID commands
+        self.broker_statuses = {}  # Track broker health
         self.command_queue = queue.Queue()
 
-        # New: Configurable features
-        self.sensitivity = max(0.1, min(2.0, sensitivity))  # Clamp to reasonable range
-        self.rate_limit_ms = max(10, min(200, rate_limit_ms))  # MQTT send rate (ms between sends)
-        self.inactivity_timeout_s = inactivity_timeout_s  # Timeout for key release_all
-        self.global_timeout_s = global_timeout_s  # Global inactivity flush
-        self.click_hold_ms = click_hold_ms  # Brief hold time for clicks (ms) to mimic natural feel
+        # Configurable features - improved defaults for lower latency
+        self.sensitivity = max(0.1, min(2.0, sensitivity))
+        self.rate_limit_ms = max(10, min(200, rate_limit_ms))  # Default now 20ms (50Hz)
+        self.inactivity_timeout_s = inactivity_timeout_s
+        self.global_timeout_s = global_timeout_s
+        self.click_hold_ms = click_hold_ms
 
-        # New: Timeout and smoothing state
+        # Timeout and smoothing state
         self.last_activity_time = time.time()
         self.last_key_time = time.time()
         self.last_send_time = time.time()
         self.smoothed_dx = 0.0  # For EMA smoothing
         self.smoothed_dy = 0.0
-        self.alpha = 0.5  # EMA smoothing factor (0.0-1.0; higher = more smoothing)
+        self.alpha = 0.5  # EMA smoothing factor
 
-        # New: Signal handling counters
+        # Signal handling counters
         self.sigint_count = 0  # CTRL+C
         self.sigtstp_count = 0  # CTRL+Z
+
+        # State-based keyboard protocol
+        self.use_keyboard_state = use_keyboard_state
+        self.currently_pressed = set()  # Set of currently pressed HID codes
 
         # MQTT topics
         self.mouse_topic = f"hid/{device_id}/mouse"
         self.key_topic = f"hid/{device_id}/key"
         self.status_topic = f"hid/{device_id}/status"
+        self.ping_topic = f"hid/{device_id}/ping"
+
+        # Latency optimization: mouse movement queue for dropping stale events
+        self.pending_mouse_dx = 0
+        self.pending_mouse_dy = 0
+        self.pending_mouse_wheel = 0
+        self.mouse_lock = threading.Lock()
 
         self.setup_mqtt()
-        # Start background thread for timeouts
+        # Start background threads
         threading.Thread(target=self._timeout_handler, daemon=True).start()
+        threading.Thread(target=self._discovery_handler, daemon=True).start()
 
     def setup_mqtt(self):
-        self.client.on_connect = self.on_connect
-        self.client.on_disconnect = self.on_disconnect
+        """Setup MQTT clients for all configured brokers with multi-broker discovery."""
+        print(f"Setting up MQTT connections to {len(self.mqtt_brokers)} broker(s)...")
 
-        # Retry connection with exponential backoff
-        max_retries = 5
-        retry_delay = 1
+        for broker_host, broker_port in self.mqtt_brokers:
+            broker_key = f"{broker_host}:{broker_port}"
+            self.broker_statuses[broker_key] = {"last_seen": 0, "device_online": False}
 
-        for attempt in range(max_retries):
             try:
-                print(f"Attempting to connect to {self.mqtt_broker}... (attempt {attempt + 1})")
-                self.client.connect(self.mqtt_broker, self.mqtt_port, 60)
-                self.client.loop_start()
-                return
+                client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"{self.device_id}_host_{broker_key}")
+                client.user_data_set(broker_key)  # Store broker key in user data
+                client.on_connect = self.on_connect
+                client.on_disconnect = self.on_disconnect
+                client.on_message = self.on_message
+
+                # Retry connection with exponential backoff
+                max_retries = 3
+                retry_delay = 1
+
+                for attempt in range(max_retries):
+                    try:
+                        print(f"Connecting to {broker_host}:{broker_port}... (attempt {attempt + 1})")
+                        client.connect(broker_host, broker_port, 60)
+                        client.loop_start()
+                        self.clients[broker_key] = client
+                        print(f"✓ Connection initiated to {broker_key}")
+                        break
+                    except Exception as e:
+                        print(f"Connection to {broker_key} failed: {e}")
+                        if attempt < max_retries - 1:
+                            time.sleep(retry_delay)
+                            retry_delay *= 2
+                        else:
+                            print(f"Max retries reached for {broker_key}")
             except Exception as e:
-                print(f"Connection failed: {e}")
-                if attempt < max_retries - 1:
-                    print(f"Retrying in {retry_delay} seconds...")
-                    time.sleep(retry_delay)
-                    retry_delay *= 2  # Exponential backoff
-                else:
-                    print("Max retries reached. Connection failed.")
-                    raise
+                print(f"Failed to setup client for {broker_key}: {e}")
 
     def on_connect(self, client, userdata, flags, rc, properties=None):
-        print(f"✔ Connected to MQTT broker with result code {rc}")
-        # Publish online status
-        client.publish(self.status_topic, json.dumps({"status": "online", "timestamp": time.time()}))
+        """Called when a broker connection is established. Subscribe to status topic for discovery."""
+        broker_key = userdata
+        print(f"✔ Connected to {broker_key} (rc={rc})")
+
+        # Subscribe to status and ping topics for device discovery
+        client.subscribe(self.status_topic, qos=1)
+        client.subscribe(self.ping_topic, qos=1)
+
+        # Send ping to discover device on this broker
+        ping_msg = json.dumps({
+            "from": "host",
+            "device_id": self.device_id,
+            "timestamp": time.time()
+        })
+        client.publish(self.ping_topic, ping_msg, qos=1)
+        print(f"Sent discovery ping on {broker_key}")
 
     def on_disconnect(self, client, userdata, rc, properties=None):
-        print(f"✗ Disconnected from MQTT broker with result code {rc}")
+        """Called when disconnected from a broker."""
+        broker_key = userdata
+        print(f"✗ Disconnected from {broker_key} (rc={rc})")
+
+        # If this was the active broker, clear it and trigger rediscovery
+        if self.active_broker == broker_key:
+            print(f"Lost active broker {broker_key}, entering discovery mode...")
+            self.active_broker = None
+
+    def on_message(self, client, userdata, msg):
+        """Handle incoming messages from brokers (mainly status responses)."""
+        broker_key = userdata
+        try:
+            payload = json.loads(msg.payload.decode())
+
+            if msg.topic == self.status_topic:
+                # Device sent status response
+                if payload.get("status") in ["online", "alive"]:
+                    self.broker_statuses[broker_key]["last_seen"] = time.time()
+                    self.broker_statuses[broker_key]["device_online"] = True
+
+                    # If we don't have an active broker, or this is a better one, switch to it
+                    if self.active_broker is None:
+                        self.active_broker = broker_key
+                        print(f"✓✓ Device discovered on {broker_key} - now active HID broker")
+
+                        # Send release_all to ensure clean state after reconnect
+                        self.send_key_command("release_all", 0)
+        except Exception as e:
+            print(f"Error processing message from {broker_key}: {e}")
+
+    def _discovery_handler(self):
+        """Background thread: Periodic rediscovery and health monitoring."""
+        while True:
+            time.sleep(3)  # Check every 3 seconds
+
+            # Send periodic pings to all brokers to keep discovering the device
+            for broker_key, client in self.clients.items():
+                try:
+                    if client.is_connected():
+                        ping_msg = json.dumps({
+                            "from": "host",
+                            "device_id": self.device_id,
+                            "timestamp": time.time()
+                        })
+                        client.publish(self.ping_topic, ping_msg, qos=1)
+                except Exception as e:
+                    print(f"Error sending ping to {broker_key}: {e}")
+
+            # Check if active broker has timed out
+            if self.active_broker:
+                last_seen = self.broker_statuses.get(self.active_broker, {}).get("last_seen", 0)
+                if time.time() - last_seen > 10:  # 10 second timeout
+                    print(f"Active broker {self.active_broker} timed out, entering discovery mode...")
+                    self.active_broker = None
 
     def _timeout_handler(self):
-        """Background thread: Check for inactivity and send release_all or flush mouse. (unchanged)"""
+        """Background thread: Check for inactivity and send release_all or flush mouse."""
         while True:
             now = time.time()
             if now - self.last_key_time > self.inactivity_timeout_s:
@@ -106,24 +203,52 @@ class MQTTHIDForwarder:
         return False
 
     def _flush_mouse(self, dx=0, dy=0, wheel=0, button=None, button_action=None, force=False):
-        """Aggregate and send mouse command with rate limiting, now including buttons.
-        Force-send if button action is present to ensure clicks are reliable."""
+        """Aggregate and send mouse command with rate limiting and latency optimization.
+        Force-send if button action is present to ensure clicks are reliable.
+        Uses pending values to drop stale movements when lagging."""
         if button and button_action:
             force = True  # Bypass rate limit for clicks
         if not force and not self._should_send():
+            # For movements, accumulate in pending instead of dropping
+            if dx or dy or wheel:
+                with self.mouse_lock:
+                    self.pending_mouse_dx += dx
+                    self.pending_mouse_dy += dy
+                    self.pending_mouse_wheel += wheel
             return  # Rate limit: Skip if too soon
-        scaled_dx, scaled_dy = self._smooth_and_scale(dx, dy)
+
+        # Get latest accumulated movement
+        with self.mouse_lock:
+            if dx or dy or wheel:
+                self.pending_mouse_dx += dx
+                self.pending_mouse_dy += dy
+                self.pending_mouse_wheel += wheel
+            final_dx = self.pending_mouse_dx
+            final_dy = self.pending_mouse_dy
+            final_wheel = self.pending_mouse_wheel
+            # Clear pending
+            self.pending_mouse_dx = 0
+            self.pending_mouse_dy = 0
+            self.pending_mouse_wheel = 0
+
+        scaled_dx, scaled_dy = self._smooth_and_scale(final_dx, final_dy)
         command = {
             "dx": scaled_dx,
             "dy": scaled_dy,
-            "wheel": wheel,
+            "wheel": final_wheel,
             "timestamp": time.time()
         }
         if button and button_action:
             command["button"] = button  # e.g., "left", "right", "middle"
             command["button_action"] = button_action  # "press", "release", "release_all"
-        self.client.publish(self.mouse_topic, json.dumps(command))
-        self.last_activity_time = time.time()  # Update activity
+
+        # Use QoS 0 for mouse movements (low latency), but only if we have an active broker
+        if self.active_broker and self.active_broker in self.clients:
+            client = self.clients[self.active_broker]
+            client.publish(self.mouse_topic, json.dumps(command), qos=0)
+            self.last_activity_time = time.time()
+        elif not self.active_broker:
+            pass  # Silently drop if no active broker (avoid spam)
 
     def send_mouse_command(self, dx=0, dy=0, wheel=0, button=None, button_action=None):
         """Send mouse with smoothing, scaling, rate limiting, and optional button action."""
@@ -131,13 +256,38 @@ class MQTTHIDForwarder:
         self.last_activity_time = time.time()
 
     def send_key_command(self, action, key_code):
-        """Send key command, update key activity time. (unchanged)"""
-        command = {
-            "action": action,  # "press" or "release" or "release_all"
-            "key": key_code,
-            "timestamp": time.time()
-        }
-        self.client.publish(self.key_topic, json.dumps(command))
+        """Send key command with state tracking and QoS 1 for reliability.
+        Supports both legacy event-based and new state-based protocols."""
+        if not self.active_broker or self.active_broker not in self.clients:
+            return  # No active broker, silently drop
+
+        client = self.clients[self.active_broker]
+
+        if self.use_keyboard_state:
+            # State-based protocol: update currently_pressed set
+            if action == "press":
+                self.currently_pressed.add(key_code)
+            elif action == "release":
+                self.currently_pressed.discard(key_code)
+            elif action == "release_all":
+                self.currently_pressed.clear()
+
+            # Send state update
+            command = {
+                "action": "state",
+                "pressed": list(self.currently_pressed),
+                "timestamp": time.time()
+            }
+        else:
+            # Legacy event-based protocol
+            command = {
+                "action": action,  # "press" or "release" or "release_all"
+                "key": key_code,
+                "timestamp": time.time()
+            }
+
+        # Use QoS 1 for keyboard events (reliability)
+        client.publish(self.key_topic, json.dumps(command), qos=1)
         self.last_activity_time = time.time()
         self.last_key_time = time.time()  # Specific to keys
 
@@ -488,28 +638,50 @@ def start_pyautogui(base: str, dbg: bool) -> bool:
 # main
 # ————
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(description="Forward HID input via MQTT with enhancements")
-    ap.add_argument("--broker", default="broker.emqx.io", help="MQTT broker address")
+    ap = argparse.ArgumentParser(description="Forward HID input via MQTT with multi-broker support and enhancements")
+    # Broker configuration
+    ap.add_argument("--broker", default="broker.emqx.io", help="Single MQTT broker address (default: broker.emqx.io)")
+    ap.add_argument("--brokers", nargs='+', help="Multiple MQTT brokers (e.g., broker.emqx.io:1883 test.mosquitto.org:1883)")
     ap.add_argument("--device-id", default="esp32_hid_001", help="Unique device ID")
     ap.add_argument("--debug", action="store_true", help="print every MQTT message")
     ap.add_argument("--url", help="Legacy compatibility (ignored in MQTT mode)")
-    # New args for features
-    ap.add_argument("--sensitivity", type=float, default=0.5, help="Mouse speed scaling (0.1-2.0, default 0.5 for slower movement)")
-    ap.add_argument("--rate-limit-ms", type=int, default=50, help="Min ms between MQTT sends (10-200, default 50 for 20Hz)")
+    # Performance tuning (improved defaults for lower latency)
+    ap.add_argument("--sensitivity", type=float, default=0.5, help="Mouse speed scaling (0.1-2.0, default 0.5)")
+    ap.add_argument("--rate-limit-ms", type=int, default=20, help="Min ms between MQTT sends (10-200, default 20ms for ~50Hz)")
     ap.add_argument("--inactivity-timeout-s", type=int, default=2, help="Seconds of key inactivity before release_all (default 2)")
     ap.add_argument("--global-timeout-s", type=int, default=5, help="Seconds of total inactivity before flush (default 5)")
     ap.add_argument("--click-hold-ms", type=int, default=50, help="ms to hold for clicks (default 50 for natural feel)")
+    # State-based keyboard protocol
+    ap.add_argument("--keyboard-state", action="store_true", help="Use state-based keyboard protocol (resilient to packet loss)")
     args = ap.parse_args()
 
     print("🦆 HID-MQTT Forwarder starting...")
 
+    # Parse broker list
+    mqtt_brokers = []
+    if args.brokers:
+        # Multi-broker mode
+        for broker_str in args.brokers:
+            if ':' in broker_str:
+                host, port = broker_str.split(':')
+                mqtt_brokers.append((host, int(port)))
+            else:
+                mqtt_brokers.append((broker_str, 1883))
+        print(f"Multi-broker mode: {len(mqtt_brokers)} broker(s)")
+    else:
+        # Single broker mode
+        mqtt_brokers = [(args.broker, 1883)]
+        print(f"Single-broker mode: {args.broker}")
+
     # Initialize MQTT forwarder with new params
-    mqtt_forwarder = MQTTHIDForwarder(args.broker, device_id=args.device_id,
+    mqtt_forwarder = MQTTHIDForwarder(mqtt_brokers=mqtt_brokers,
+                                      device_id=args.device_id,
                                       sensitivity=args.sensitivity,
                                       rate_limit_ms=args.rate_limit_ms,
                                       inactivity_timeout_s=args.inactivity_timeout_s,
                                       global_timeout_s=args.global_timeout_s,
-                                      click_hold_ms=args.click_hold_ms)
+                                      click_hold_ms=args.click_hold_ms,
+                                      use_keyboard_state=args.keyboard_state)
     # New: Set up signal handlers
     signal.signal(signal.SIGINT, mqtt_forwarder.handle_sigint)  # CTRL+C
     signal.signal(signal.SIGTSTP, mqtt_forwarder.handle_sigtstp)  # CTRL+Z (Linux/Unix; Windows may need alternative)
@@ -528,10 +700,19 @@ if __name__ == "__main__":
     try:
         while True:
             time.sleep(1)
+            # Print active broker status
+            if mqtt_forwarder.active_broker:
+                print(f"[Active broker: {mqtt_forwarder.active_broker}]", end='\r')
     except KeyboardInterrupt:
-        print("bye!")
-        mqtt_forwarder.client.loop_stop()
-        mqtt_forwarder.client.disconnect()
+        print("\nbye!")
+        # Cleanup all clients
+        for broker_key, client in mqtt_forwarder.clients.items():
+            try:
+                client.loop_stop()
+                client.disconnect()
+                print(f"Disconnected from {broker_key}")
+            except:
+                pass
 
 
 # #!/usr/bin/env python3
